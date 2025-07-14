@@ -1,0 +1,408 @@
+#include <Arduino.h>
+#include <Adafruit_PWMServoDriver.h>
+#include "Constants.cpp"
+#include "Vector3.h"
+
+/**
+ * This file implements methods controlling the movement of the robot.
+ * It includes functions to move the robot forward, backward, and to turn it left or right.
+ * The movement is controlled by setting the speed of the motors and adjusting the direction.
+ * The robot can also stop its movement.
+ */
+
+extern Adafruit_PWMServoDriver pwm1;
+extern Adafruit_PWMServoDriver pwm2;
+
+struct servoConfig {
+    uint8_t servoNum; // The servo number on the PCA9685 board
+    int minPwm; // The minimum pwm for the servo
+    int maxPwm; // The maximum pwm for the servo
+    int pwmNum; // location of the PCA9685 board: 1 or 2. 1 is left side, 2 is right side
+    float midVal;
+
+    void move(float angle) {
+        // Map the angle to the PWM range
+        int pwmValue = map(angle, 0, 180, minPwm, maxPwm);
+        // Set the PWM value for the servo
+        if (pwmNum == 1) {
+            pwm1.setPWM(servoNum, 0, pwmValue);
+        } else {
+            pwm2.setPWM(servoNum, 0, pwmValue);
+        }
+    }
+    servoConfig(uint8_t num, int minPwm, int maxPwm, int pwmBoard, float midVal)
+        : servoNum(num), minPwm(minPwm), maxPwm(maxPwm), pwmNum(pwmBoard), midVal(midVal) {}
+};
+
+class Leg {
+    public:
+
+    #pragma region "Leg Setups"
+    // servo numbers correspond to numbers on servo holder, not the PCA pins
+    servoConfig servo1; // tibia servo
+    servoConfig servo2; // femur servo
+    servoConfig servo3; // coxa servo
+    
+    // lengths of the leg segments in mm
+    int l1; // coxa length
+    int l2; // femur length
+    int l3; // tibia length
+    
+    // angles of the servos in degrees
+    float coxaAng; // angle of the coxa servo relative to the body
+    float femurAng; // angle of the femur servo relative to the coxa
+    float tibiaAng; // angle of the tibia servo relative to the femur
+
+    float currCoxaAng; // angle of the coxa relative to the body in degrees
+    float currFemurAng; // angle of the femur relative to the coxa in degrees (horizontal line to l2))
+    float currTibiaAng; // angle of the tibia relative to the (l2 to l3)
+
+    float theta = 0; // coxa angle in degrees
+    float alpha = 0; // femur angle
+    float beta = 0; // tibia angle
+
+    Vector3 interpolationResults[SPEED];  // The coordinates of the interpolated points. The x and y coordinates
+                                     // can be scaled using the variable t from the interpolation method
+
+    Leg(servoConfig s1, servoConfig s2, servoConfig s3, int length1, int length2, int length3, float t, float a, float b, 
+        float currCoxa, float currFemur, float currTibia) : servo1(s1), servo2(s2), servo3(s3), 
+        l1(length1), l2(length2), l3(length3), coxaAng(t), femurAng(a), tibiaAng(b), 
+        currCoxaAng(currCoxa), currFemurAng(currFemur), currTibiaAng(currTibia) {}
+
+    float toDegrees(float rad) {
+        return rad * (180.0f / 3.14159265358979323846f); // Convert radians to degrees
+    }
+
+    float toRadians(float deg) {
+        return deg * (3.14159265358979323846f / 180.0f); // Convert degrees to radians
+    }
+
+    void initialize() {
+        moveCoxa(0); // angle is how much more to move the servo from its current position
+        moveFemur(30);
+        moveTibia(0);
+    }
+    #pragma endregion
+    
+    /* Into the interpolationResults arrays (x, y, and z) based on the curve using Bezier Curve with one
+    * control point at x = midpoint of moving distance and y = 0.3 * x. The x and y coordinates are 
+    * calculated by scaling the targetX and targetY coordinates by t.
+    * Bezier curve found here: https://www.desmos.com/calculator/cahqdxeshd.
+    */
+    void interpolate(int targetX, int targetY, int targetZ) { // adds the interpolated points 
+
+        float ratio = 1.0f / (SPEED / 2);
+        float l = sqrt(targetX * targetX + targetY * targetY + targetZ * targetZ); // length of the line segment
+        float t;
+        float tP;
+        Serial.println("Interpolating");
+
+        for (int i = 0; i < (SPEED / 2 + 1); i++) {
+            t = i * ratio;
+            tP = 1 - t; // tP is t prime (1-t)
+            
+            interpolationResults[i].x = t * targetX;
+            // Serial.print("Interpolation x result: "); Serial.println(interpolationXResults[i]);
+            
+            interpolationResults[i].y = t * targetY;
+            // Serial.print("Interpolation y result: "); Serial.println(interpolationYResults[i]);
+
+            interpolationResults[i].z = tP * (tP * (t * l * 0.3f) + t * (tP * l * 0.3f + t * l * 0.3f)) 
+                 + t * (tP * (tP * l * 0.3f + t * l * 0.3f) + t * (tP * l * 0.3f + t * targetZ));
+            // Serial.print("Interpolation z result: "); Serial.println(interpolationZResults[i]);
+        }
+
+        for (int j = (SPEED / 2 + 1); j < SPEED; j++) {
+            interpolationResults[j].x = (SPEED - j) * ratio * targetX;
+            // Serial.print("interpolation x: "); Serial.println(interpolationResults[j].x);
+
+            interpolationResults[j].y = (SPEED - j) * ratio * targetY;
+            // Serial.print("interpolation y: "); Serial.println(interpolationResults[j].y);
+
+            interpolationResults[j].z = 0;
+            // Serial.print("interpolation z: "); Serial.println(interpolationResults[j].z);
+        }
+    }
+
+    /* Calculates the angles alpha, beta, and theta based on the x, y, z coordinates
+    * Reference: https://www.alanzucconi.com/2020/09/14/inverse-kinematics-in-3d/
+    */ 
+    void calculateIK(float currX, float currY, float currZ, Vector3& delta) {
+
+        Serial.print("*****float y in IK: "); Serial.println(delta.y);
+        float legLength = l1 + l2 * sin(toRadians(currFemurAng)) + l3 * sin(toRadians(-165.96 + currFemurAng + currTibiaAng));
+        float projectedLength = sqrt((x + legLength * cos(toRadians(theta))) * (x + legLength * cos(toRadians(theta)))
+             + (y + legLength * sin(toRadians(theta))) * (y + legLength * sin(toRadians(theta)))); // Projected length of the leg on the XY plane
+        Serial.print("*****projected length: "); Serial.println(projectedLength);
+
+        theta = toDegrees(atan2(y, projectedLength)); // should be (servoAngle + theta) for movement
+
+        float delZ = cos(toRadians(-165.96 + currFemurAng + currTibiaAng)) * l3 - cos(toRadians(180 - currFemurAng)) * l2 - z; // delZ is the difference in the z coord of the legs
+        Serial.print("*****delZ: "); Serial.println(delZ);
+        alpha = toDegrees(acosf((- l3 * l3 + l2 * l2 + (projectedLength - l1) * (projectedLength - l1) + delZ * delZ) 
+            / (2 * sqrt(delZ * delZ + (projectedLength - l1) * (projectedLength - l1)) * l2)) - atan2(delZ, projectedLength - l1));
+        
+        beta = toDegrees(acosf((l3 * l3 + l2 * l2 - (projectedLength - l1) * (projectedLength - l1) - delZ * delZ) 
+            / (2 * l3 * l2)));
+        
+        Serial.print("Calculated angles: theta="); Serial.print(theta);
+        Serial.print(", alpha="); Serial.print(alpha);
+        Serial.print(", beta="); Serial.println(beta);
+    }
+        
+    /* Move the coxa servo (servo3) to the specified angle. Side determined from the pwmNum of the servoConfig.
+    * Servo number is implied by the joint type, so no need to pass it in.
+    */
+    void moveCoxa(float angle) {
+
+        if (servo3.pwmNum == 2 && (servo3.midVal + angle) <= 180 && (servo3.midVal + angle) >= 0) { // Left side
+            
+            pwm2.setPWM(servo3.servoNum, 0, map(servo3.midVal + angle, 0, 180, servo3.minPwm, servo3.maxPwm));
+            
+            currCoxaAng += servo3.midVal + angle - coxaAng; // Update the current coxa angle
+            // Serial.print("currCoxaAng: "); Serial.println(currCoxaAng);
+            
+            coxaAng = servo3.midVal + angle; // Update the current coxa angle
+            Serial.print("Moving coxa servo for pwm 2 to angle: "); Serial.println(servo3.midVal + angle);
+
+        } else if (servo3.pwmNum == 1 && (servo3.midVal - angle) <= 180 && (servo3.midVal - angle) >= 0) { // Right side
+            
+            pwm1.setPWM(servo3.servoNum, 0, map(servo3.midVal - angle, 0, 180, servo3.minPwm, servo3.maxPwm));
+            
+            currCoxaAng += servo3.midVal - angle - coxaAng; // Update the current coxa angle
+            // Serial.print("currCoxaAng: "); Serial.println(currCoxaAng);
+
+            coxaAng = servo3.midVal - angle; // Update the current coxa angle
+            Serial.print("Moving coxa servo for pwm 1 to angle: "); Serial.println(servo3.midVal - angle);
+
+        } else {
+            Serial.println("Invalid angle or config for coxa servo");
+        }
+    }
+
+    void moveFemur(float angle) {
+
+        if (servo2.pwmNum == 2 && (servo2.midVal + angle) <= 180 && (servo2.midVal + angle) >= 0) { // Left side
+
+            currFemurAng = 90 + angle - 8.787; // Update the current femur angle
+            Serial.print("currFemurAng: "); Serial.println(currFemurAng);
+
+            femurAng = servo2.midVal + angle; // Update the current femur angle
+            Serial.print("Moving femur servo for pwm 2 to angle: "); Serial.println(femurAng);
+
+            pwm2.setPWM(servo2.servoNum, 0, map(femurAng, 0, 180, servo2.minPwm, servo2.maxPwm));
+
+        } else if (servo2.pwmNum == 1 && (servo2.midVal + angle) <= 180 && (servo2.midVal + angle) >= 0) { // Right side
+
+            currFemurAng = 90 + angle - 8.787; // Update the current femur angle
+            Serial.print("currFemurAng: "); Serial.println(currFemurAng);
+
+            femurAng = servo2.midVal + angle; // Update the current femur angle
+            Serial.print("Moving femur servo for pwm 1 to angle: "); Serial.println(femurAng);
+
+            pwm1.setPWM(servo2.servoNum, 0, map(femurAng, 0, 180, servo2.minPwm, servo2.maxPwm));
+
+        } else {
+            Serial.println("Invalid angle or config for femur servo");
+        }
+    }
+
+    void moveTibia(float angle) {
+        if (servo1.pwmNum == 2 && (tibiaAng + angle) <= 180 && (tibiaAng + angle) >= 0) { // Left side
+            
+            pwm2.setPWM(servo1.servoNum, 0, map(tibiaAng + angle, 0, 180, servo1.minPwm, servo1.maxPwm));
+            
+            tibiaAng = tibiaAng + angle; // Update the current tibia angle
+            
+            currTibiaAng = currTibiaAng + angle; // Update the current tibia angle
+            Serial.print("Moving tibia servo for pwm 2 to angle: "); Serial.println(tibiaAng);
+
+        } else if (servo1.pwmNum == 1 && (tibiaAng + angle) <= 180 && (tibiaAng + angle) >= 0) { // Right side
+            
+            pwm1.setPWM(servo1.servoNum, 0, map(tibiaAng + angle, 0, 180, servo1.minPwm, servo1.maxPwm));
+            
+            tibiaAng = tibiaAng + angle; // Update the current tibia angle
+            
+            currTibiaAng = currTibiaAng + angle; // Update the current tibia angle
+            Serial.print("Moving tibia servo for pwm 1 to angle: ");  Serial.println(tibiaAng);
+
+        } else {
+            Serial.println("Invalid angle or config for tibia servo");
+        }
+    }
+};
+
+class Robot {
+    public:
+
+    #pragma region "Servo Configurations"
+    // servo setups
+    servoConfig servo5 = {9, 150, 610, 1, 90.0f}; // 1 is right 2 is left
+    servoConfig servo11 = {10, 130, 600, 1, 90.0f};
+    servoConfig servo17 = {11, 120, 580, 1, 90.0f};
+
+    servoConfig servo4 = {5, 120, 600, 1, 100.0f};
+    servoConfig servo10 = {6, 180, 640, 1, 90.0f};
+    servoConfig servo16 = {7, 110, 510, 1, 100.0f};
+
+    servoConfig servo3 = {0, 200, 600, 1, 90.0f};
+    servoConfig servo9 = {1, 150, 620, 1, 90.0f};
+    servoConfig servo15 = {2, 140, 600, 1, 90.0f};
+
+    servoConfig servo0 = {9, 150, 700, 2, 90.0f};
+    servoConfig servo6 = {10, 120, 620, 2, 90.0f};
+    servoConfig servo12 = {11, 110, 630, 2, 85.0f};
+
+    servoConfig servo1 = {5, 130, 700, 2, 95.0f};
+    servoConfig servo7 = {6, 150, 670, 2, 95.0f};
+    servoConfig servo13 = {7, 150, 600, 2, 95.0f};
+
+    servoConfig servo2 = {0, 150, 700, 2, 90.0f};
+    servoConfig servo8 = {1, 130, 650, 2, 87.0f};
+    servoConfig servo14 = {2, 150, 660, 2, 90.0f};
+
+    // Params: servo1, 2, 3, coxa, femur, tibia length, C's, F's, T's servo angle, C,F,T's physical angle 
+    Leg leg0 = {servo0, servo6, servo12, 62, 83, 112, 85.0f, 120.0f, 45.0f, 90.0f, 111.213f, 60.689f}; // left, pwm 2
+    Leg leg1 = {servo1, servo7, servo13, 62, 83, 112, 95.0f, 125.0f, 50.0f, 90.0f, 111.213f, 60.689f}; // left, pwm 2
+    Leg leg2 = {servo2, servo8, servo14, 62, 83, 112, 90.0f, 117.0f, 45.0f, 90.0f, 111.213f, 60.689f}; // left, pwm 2
+    Leg leg3 = {servo3, servo9, servo15, 62, 83, 112, 90.0f, 120.0f, 45.0f, 90.0f, 111.213f, 60.689f}; // right, pwm 1
+    Leg leg4 = {servo4, servo10, servo16, 62, 83, 112, 100.0f, 120.0f, 55.0f, 90.0f, 111.213f, 60.689f}; // right, pwm 1
+    Leg leg5 = {servo5, servo11, servo17, 62, 83, 112, 90.0f, 120.0f, 45.0f, 90.0f, 111.213f, 60.689f}; // right, pwm 1
+    
+    int currXCoord;
+    int currYCoord;
+    int currZCoord; 
+    
+    #pragma endregion
+
+    Robot(int x, int y, int z) {
+        currXCoord = x;
+        currYCoord = y;
+        currZCoord = z;
+
+        Serial.print("Robot initialized: ");
+        Serial.print(currXCoord); Serial.print(", ");
+        Serial.print(currYCoord); Serial.print(", ");
+        Serial.println(currZCoord);
+    }
+
+    void updateCurrCoord(int targetX, int targetY, int targetZ) {
+        currXCoord += targetX;
+        currYCoord += targetY;
+        currZCoord += targetZ;
+
+        Serial.println("Updated current coordinates: ");
+        Serial.print("currXCoord: "); Serial.print(currXCoord);
+        Serial.print(", currYCoord: "); Serial.print(currYCoord);
+        Serial.print(", currZCoord: "); Serial.println(currZCoord);
+    }
+
+    /* Moves the servos of the robot in a tripod walk configuration.
+    *  Precondition: legA's servo label < legB's servo label < legC's servo label.
+    */
+    void tripodMoveServos(Leg& legA, Leg& legB, Leg& legC) {
+        
+        // legA.moveCoxa(legA.theta); legA.moveFemur(legA.alpha + 90 - legA.currFemurAng); legA.moveTibia(legA.beta - legA.currTibiaAng); // TODO right now: change the tibia moving angle
+        // legB.moveCoxa(legB.theta); legB.moveFemur(legB.alpha + 90 - legB.currFemurAng); legB.moveTibia(legB.beta - legB.currTibiaAng);
+        
+        Serial.print("***** angle being called: "); Serial.println(legC.alpha);
+
+        legC.moveCoxa(legC.theta); legC.moveFemur(legC.alpha + 8.787); legC.moveTibia(legC.beta - (legC.currTibiaAng - 38.799) - 52.799);
+        // Serial.print("Moving leg C coxa: "); Serial.println(legC.theta); // TODO 0: find the correct angle to move by
+        // Serial.print("Moving leg C femur: "); Serial.println(legC.alpha + 90 - legC.currFemurAng);
+        // Serial.print("Moving leg C tibia: "); Serial.println(legC.beta - (legC.currTibiaAng - 38.799) - 52.799);
+    }
+
+    /* Moves the robot by some distance in the x and y directions.
+    *  Precondition: legA's servo label < legB's servo label < legC's servo label.
+    */
+    void tripodWalk(Leg& legA, Leg& legB, Leg& legC, int x, int y, int z) { // tibias 0, 2, and 4
+                    // Need to call the legs by reference (&) to prevent memory corruption. Calling
+                    // just the values of Leg causes undefined behavior.
+
+        if (x == 0) { // y and z direction displacements only
+            // Interpolate the points for the legs
+            legA.interpolate(x, y, z);
+            legB.interpolate(x, y, z);
+            legC.interpolate(x, y, z);
+        } else if ((x < 0 && legA.servo1.pwmNum == 2) || (x > 0 && legA.servo1.pwmNum == 1)) { 
+            // left tripod walk to the left or right tripod walk to the right. negate x-coord on legB
+            legA.interpolate(x, y, z);
+            legB.interpolate(-x, y, z);
+            legC.interpolate(x, y, z);
+        } else if ((x < 0 && legA.servo1.pwmNum == 1) || (x > 0 && legA.servo1.pwmNum == 2)) { 
+            // right tripod walk to the left or left tripod walk to the right. negate x-coord on legA and legC
+            legA.interpolate(-x, y, z);
+            legB.interpolate(-x, y, z);
+            legC.interpolate(x, y, z);
+            Serial.print("**** Interpolation coordinates: ");
+        } else {
+            Serial.println("Invalid x coordinate for tripod walk");
+            Serial.println(legA.servo1.pwmNum);
+            return;
+        }
+
+        // int size = SPEED; // Assuming the size is the same for all legs
+        for (int i = 0; i < SPEED; i++) {
+            // Serial.println("Leg A's IK: ");
+            // legA.calculateIK(currXCoord, currYCoord, currZCoord, legA.interpolationXResults[i], 
+            //     legA.interpolationYResults[i], legA.interpolationZResults[i]);
+            // Serial.println("Leg B's IK: ");
+            // legB.calculateIK(currXCoord, currYCoord, currZCoord, legB.interpolationXResults[i], 
+            //     legB.interpolationYResults[i], legB.interpolationZResults[i]);
+            Serial.println("Leg C's IK: ");
+            legC.calculateIK(currXCoord, currYCoord, currZCoord, legC.interpolationResults[i]);
+            Serial.print("Interpolation x: "); Serial.println(legC.interpolationResults[i].x);
+            Serial.print("Interpolation y: "); Serial.println(legC.interpolationResults[i].y);
+            Serial.print("Interpolation z: "); Serial.println(legC.interpolationResults[i].z);
+            Serial.print("Angle theta: "); Serial.println(legC.theta);
+            Serial.print("Angle alpha: "); Serial.println(legC.alpha);
+            Serial.print("Angle beta: "); Serial.println(legC.beta);
+            tripodMoveServos(legA, legB, legC); // Move the servos of the legs
+            delay(10); // Delay to allow the servos to move
+        }
+    }
+
+    void robotMove(int targetX, int targetY, int targetZ) {
+        tripodWalk(leg0, leg2, leg4, targetX / 2, targetY / 2, targetZ / 2); // left walk
+        delay(100);
+        updateCurrCoord(targetX / 2, targetY / 2, targetZ / 2);
+
+        // tripodWalk(leg1, leg3, leg5, targetX / 2, targetY / 2, targetZ / 2); // right walk
+        // delay(100);
+        // updateCurrCoord(targetX / 2, targetY / 2, targetZ / 2);
+
+        // Serial.print("Current Position: X=");
+        // Serial.print(currXCoord);
+        // Serial.print(", Y=");
+        // Serial.print(currYCoord);
+        // Serial.print(", Z=");
+        // Serial.println(currZCoord);
+    }
+
+    // put function definitions here:
+    void defaultPosition() {
+        leg0.initialize(); leg1.initialize(); leg2.initialize();
+        leg3.initialize(); leg4.initialize(); leg5.initialize();
+    }
+
+
+    // TODO 2: test thoroughly the interpolate() and calculateIK() methods
+    // TODO 7: implement the 4 robot modes 
+    void mode1() { // 1: mode 1: can do the lethal dance, each mode lasts for 5 seconds
+        Serial.println("mode 1");
+        delay(5000); // Simulate the dance for 5 seconds
+    }
+    void mode2() { // 2: mode 2: turn around in place
+        Serial.println("mode 2");
+    }
+
+    void mode3() { // 3: mode 3: jump?
+        Serial.println("mode 3");
+    }
+
+    void mode4() { // 4: mode 4: do a wave (as in like titling the robot body left and right)
+        Serial.println("mode 4");
+    } 
+};
+
