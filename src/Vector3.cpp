@@ -1,9 +1,10 @@
+#include <Arduino.h>
 #include "Vector3.h"
 #include <math.h>
 
 // Vector operations
-float Vector3::magnitude() const {
-    return sqrt(x * x + y * y + z * z);
+float Vector3::xyProj() const {
+    return sqrt(x * x + y * y);
 }
 
 Vector3 Vector3::distance(const Vector3& other) const {
@@ -29,4 +30,17 @@ Vector3 Vector3::operator+(const Vector3& other) const {
 
 Vector3 Vector3::operator-(const Vector3& other) const {
     return Vector3(x - other.x, y - other.y, z - other.z);
+}
+
+Vector3 Vector3::operator/(int divisor) const {
+    return (divisor == 0) ? Vector3(0, 0, 0) : Vector3(x / divisor, y / divisor, z / divisor);
+}
+
+void Vector3::print() const {
+    Serial.print("Vector3 object: ");
+    Serial.print(x);
+    Serial.print(", ");
+    Serial.print(y);
+    Serial.print(", ");
+    Serial.println(z);
 }

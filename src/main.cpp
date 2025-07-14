@@ -2,6 +2,7 @@
 #include <Adafruit_PWMServoDriver.h>
 #include "Movement.cpp"
 #include "Constants.cpp"
+#include "Vector3.h"
 
 // put function declarations here:
 // void defaultPosition(int, int);
@@ -41,7 +42,7 @@ void loop() { // Reads the user's input from the keyboard's arrow keys and contr
 
   if (input == 99) { // "c" (for testing)
     // Serial.println(robot.currXCoord);
-    robot -> robotMove(0, SPEED, 0); // right walk
+    robot -> robotMove(Vector3(0, SPEED, 0)); // right walk
     // legA.moveFemur(10);
     // legB.moveFemur(10);
     // legC.moveFemur(10);
@@ -67,13 +68,13 @@ void loop() { // Reads the user's input from the keyboard's arrow keys and contr
   }
   
   if (input == 119) { // "w"
-    robot -> robotMove(0, SPEED, 0);
+    robot -> robotMove(Vector3(0, SPEED, 0));
   } else if (input == 97) { // "a"
-    robot -> robotMove(-SPEED, 0, 0);
+    robot -> robotMove(Vector3(-SPEED, 0, 0));
   } else if (input == 115) { // "s"
-    robot -> robotMove(0, -SPEED, 0);
+    robot -> robotMove(Vector3(0, -SPEED, 0));
   } else if (input == 100) { // "d"
-    robot -> robotMove(SPEED, 0, 0);
+    robot -> robotMove(Vector3(SPEED, 0, 0));
   }
 
   if (input == 49) { // 1: mode 1: can do the lethal dance

@@ -10,7 +10,7 @@ class Vector3 {
         Vector3(float x, float y, float z) : x(x), y(y), z(z) {}
 
         // Vector operations
-        float magnitude() const;
+        float xyProj() const;
         Vector3 distance(const Vector3& other) const;
 
         Vector3 cross(const Vector3& other) const;
@@ -19,6 +19,9 @@ class Vector3 {
         // Operator overloads
         Vector3 operator+(const Vector3& other) const;
         Vector3 operator-(const Vector3& other) const;
+        Vector3 operator/(int divisor) const;
+
+        void print() const;
 };
 
 #endif // VECTOR3_H
