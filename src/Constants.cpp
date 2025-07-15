@@ -95,5 +95,6 @@
 // #define servonum8 1
 // #define servonum14 2
 
-#define SPEED 30 // Distance robot moves in mm, can be adjusted as needed
-// // int SERVO_SPEED = 1;
+#define SPEED 200 // Distance robot moves in mm, can be adjusted as needed
+#define SPACING 20 // There will be SPEED / SPACING number of interpolation points
+#define INTERPOLATION_SIZE (SPEED / SPACING) // Number of interpolation points, can be adjusted as needed
