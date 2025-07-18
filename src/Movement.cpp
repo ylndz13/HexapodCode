@@ -82,9 +82,9 @@ class Leg {
     }
 
     void initialize() {
-        moveCoxa(0); // angle is how much more to move the servo from its current position
+        moveCoxa(servo3.midVal - coxaAng); // angle is how much more to move the servo from its current position
         moveFemur(30);
-        moveTibia(0);
+        moveTibia(servo1.midVal - tibiaAng - 45);
     }
     #pragma endregion
 
@@ -104,18 +104,14 @@ class Leg {
             tP = 1 - t; // tP is t prime (1-t)
             
             interpolation[i].x = t * targetX;
-            
             interpolation[i].y = t * targetY;
-
             interpolation[i].z = (tP * (tP * (t * l * 0.3f) + t * (tP * l * 0.3f + t * l * 0.3f)) 
                  + t * (tP * (tP * l * 0.3f + t * l * 0.3f) + t * (tP * l * 0.3f + t * targetZ)));
         }
 
         for (int j = (INTERPOLATION_SIZE / 2); j < INTERPOLATION_SIZE; j++) {
             interpolation[j].x = (INTERPOLATION_SIZE - j) * ratio * targetX;
-
             interpolation[j].y = (INTERPOLATION_SIZE - j) * ratio * targetY;
-
             interpolation[j].z = 0;
         }
 
@@ -314,13 +310,9 @@ class Robot {
     void tripodMoveServos(Leg& legA, Leg& legB, Leg& legC) {
         
         // -14.04 is the offset for calculating the tibia angle: legC.beta - (legC.currTibiaAng - 38.799) - 52.799
-
         legA.moveCoxa(legA.theta); legA.moveFemur(legA.alpha + 8.787); legA.moveTibia(legA.beta - legA.currTibiaAng - 14.04);
-        
         legB.moveCoxa(legB.theta); legB.moveFemur(legB.alpha + 8.787); legB.moveTibia(legB.beta - legB.currTibiaAng - 14.04);        
-
         legC.moveCoxa(legC.theta); legC.moveFemur(legC.alpha + 8.787); legC.moveTibia(legC.beta - legC.currTibiaAng - 14.04);
-       
         delay(75);
     }
 
@@ -330,37 +322,30 @@ class Robot {
     void tripodWalk(Leg& legA, Leg& legB, Leg& legC, const Vector3& target) { // tibias 0, 2, and 4
                     // Need to call the legs by reference (&) to prevent memory corruption. Calling
                     // just the values of Leg causes undefined behavior.
-
+        
         if (target.x == 0) { // y and z direction displacements only
             // Interpolate the points for the legs
             legA.interpolate(target.x, target.y, target.z);
             legB.interpolate(target.x, target.y, target.z);
             legC.interpolate(target.x, target.y, target.z);
-        } else if ((target.x < 0 && legA.servo1.pwmNum == 2) || (target.x > 0 && legA.servo1.pwmNum == 1)) { 
-            // left tripod walk to the left or right tripod walk to the right. negate x-coord on legB
-            legA.interpolate(target.x, target.y, target.z);
-            legB.interpolate(-target.x, target.y, target.z);
-            legC.interpolate(target.x, target.y, target.z);
-        } else if ((target.x < 0 && legA.servo1.pwmNum == 1) || (target.x > 0 && legA.servo1.pwmNum == 2)) { 
-            // right tripod walk to the left or left tripod walk to the right. negate x-coord on legA and legC
-            legA.interpolate(-target.x, target.y, target.z);
-            legB.interpolate(-target.x, target.y, target.z);
-            legC.interpolate(target.x, target.y, target.z);
-            Serial.print("**** Interpolation coordinates: ");
         } else {
-            Serial.println("Invalid x coordinate for tripod walk");
-            Serial.println(legA.servo1.pwmNum);
-            return;
+            // left tripod walk to the left or right tripod walk to the right. negate x-coord on legB
+            int factorA = (legA.servo1.pwmNum == 1) ? 1 : -1;
+            int factorB = (legB.servo1.pwmNum == 1) ? 1 : -1;
+            int factorC = (legC.servo1.pwmNum == 1) ? 1 : -1;
+
+            legA.interpolate(factorA * target.x, target.y, target.z);
+            legB.interpolate(factorB * target.x, target.y, target.z);
+            legC.interpolate(factorC * target.x, target.y, target.z);
+            Serial.println("here 1");
         }
 
+        // Calculate IK based on interpolated points
         for (int i = 0; i < (INTERPOLATION_SIZE + 1); i++) {
-
             legA.calculateIK(((i > 0) ? legA.interpolation[i - 1] : Vector3(0,0,0)), legA.interpolation[i]);
-
-            legB.calculateIK(((i > 0) ? legB.interpolation[i - 1] : Vector3(0,0,0)), legB.interpolation[i]);
-                        
+            legB.calculateIK(((i > 0) ? legB.interpolation[i - 1] : Vector3(0,0,0)), legB.interpolation[i]);         
             legC.calculateIK(((i > 0) ? legC.interpolation[i - 1] : Vector3(0,0,0)), legC.interpolation[i]);
-            
+
             // Move the servos of the legs
             tripodMoveServos(legA, legB, legC);
         }
@@ -379,7 +364,7 @@ class Robot {
     void defaultPosition() {
         leg0.initialize(); leg1.initialize(); leg2.initialize();
         leg3.initialize(); leg4.initialize(); leg5.initialize();
-        Serial.println("Initializing robot to default position");
+        Serial.println("Initialized robot to default position");
     }
 
 
