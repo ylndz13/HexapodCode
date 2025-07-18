@@ -323,13 +323,18 @@ class Robot {
                     // Need to call the legs by reference (&) to prevent memory corruption. Calling
                     // just the values of Leg causes undefined behavior.
         
-        if (target.x == 0) { // y and z direction displacements only
-            // Interpolate the points for the legs
+        // TODO 1: adjust leg angles (especially leg 4 s.t. each leg fully leaves the ground during traversal)
+        // TODO 2: figure out why repeated calls of A and D give invalid femur and tibia angles
+        // TODO 2.5: investigate the possibility of adding rpi + vision camera + april tags / targets, swtich for power system
+        // print spare plates for femur servo mount (the one with bearing)
+        // TODO 3: if time allows, work on the 4 modes
+        if (target.x == 0) {
+            // y and z direction displacements only
             legA.interpolate(target.x, target.y, target.z);
             legB.interpolate(target.x, target.y, target.z);
             legC.interpolate(target.x, target.y, target.z);
         } else {
-            // left tripod walk to the left or right tripod walk to the right. negate x-coord on legB
+            // Negate the x coordinate for the legs based on their pwmNum for side to side movement.
             int factorA = (legA.servo1.pwmNum == 1) ? 1 : -1;
             int factorB = (legB.servo1.pwmNum == 1) ? 1 : -1;
             int factorC = (legC.servo1.pwmNum == 1) ? 1 : -1;
@@ -337,7 +342,6 @@ class Robot {
             legA.interpolate(factorA * target.x, target.y, target.z);
             legB.interpolate(factorB * target.x, target.y, target.z);
             legC.interpolate(factorC * target.x, target.y, target.z);
-            Serial.println("here 1");
         }
 
         // Calculate IK based on interpolated points
