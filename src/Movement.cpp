@@ -139,16 +139,24 @@ class Leg {
 
         // Assign values to footLoc based on leg length
         footLoc.x = legLength * cos(toRadians(coxaAng - servo3.midVal));
-        footLoc.y = legLength * sin(-toRadians(coxaAng - servo3.midVal)); // TODO 1.1: may need to base signage on side of pwm.
+        if (servo3.pwmNum == 1) {
+            footLoc.y = legLength * sin(-toRadians(coxaAng - servo3.midVal));
+        } else if (servo3.pwmNum == 2) {
+            footLoc.y = legLength * sin(toRadians(coxaAng - servo3.midVal));
+        } else {
+            Serial.println("Invalid pwmNum for coxa servo");
+            return;
+        }
+        
         footLoc.z = delZ;
         // Serial.print("*****footLoc: "); footLoc.print();
 
         // projectedLength on the xy plane, independent of z
         float projectedLength = (target - current + footLoc).xyProj();
-        Serial.print("*****projected length: "); Serial.println(projectedLength);
-        Serial.print("*****target: "); target.print();
-        Serial.print("*****current: "); current.print();
-        Serial.print("*****footLoc: "); footLoc.print();
+        // Serial.print("*****projected length: "); Serial.println(projectedLength);
+        // Serial.print("*****target: "); target.print();
+        // Serial.print("*****current: "); current.print();
+        // Serial.print("*****footLoc: "); footLoc.print();
 
         // Calculates theta relative to the x axis
         theta = toDegrees(atan2(target.y, projectedLength));
@@ -316,14 +324,18 @@ class Robot {
     */
     void tripodMoveServos(Leg& legA, Leg& legB, Leg& legC) {
         
-        // legA.moveCoxa(legA.theta); legA.moveFemur(legA.alpha + 90 - legA.currFemurAng); legA.moveTibia(legA.beta - legA.currTibiaAng);
-        // legB.moveCoxa(legB.theta); legB.moveFemur(legB.alpha + 90 - legB.currFemurAng); legB.moveTibia(legB.beta - legB.currTibiaAng);
+        // -14.04 is the offset for calculating the tibia angle: legC.beta - (legC.currTibiaAng - 38.799) - 52.799
+
+        legA.moveCoxa(legA.theta); legA.moveFemur(legA.alpha + 8.787); legA.moveTibia(legA.beta - legA.currTibiaAng - 14.04);
         
+        legB.moveCoxa(legB.theta); legB.moveFemur(legB.alpha + 8.787); legB.moveTibia(legB.beta - legB.currTibiaAng - 14.04);        
+
+        legC.moveCoxa(legC.theta); legC.moveFemur(legC.alpha + 8.787); legC.moveTibia(legC.beta - legC.currTibiaAng - 14.04);
+       
+        delay(75);
+
         // Serial.print("***** angle being called: "); Serial.println(legC.alpha);
 
-        // -14.04 is the offset for calculating the tibia angle: legC.beta - (legC.currTibiaAng - 38.799) - 52.799
-        legC.moveCoxa(legC.theta); legC.moveFemur(legC.alpha + 8.787); legC.moveTibia(legC.beta - legC.currTibiaAng - 14.04);
-        delay(75);
         // Serial.print("Moving leg C coxa: "); Serial.println(legC.theta);
         // Serial.print("Moving leg C femur: "); Serial.println(legC.alpha + 90 - legC.currFemurAng);
         // Serial.print("Moving leg C tibia: "); Serial.println(legC.beta - (legC.currTibiaAng - 38.799) - 52.799);
@@ -361,13 +373,17 @@ class Robot {
         // int size = SPEED; // Assuming the size is the same for all legs
         for (int i = 0; i < (INTERPOLATION_SIZE + 1); i++) {
             // Serial.println("Leg A's IK: ");
-            // legA.calculateIK(currXCoord, currYCoord, currZCoord, legA.interpolationXResults[i], 
-            //     legA.interpolationYResults[i], legA.interpolationZResults[i]);
+
+            legA.calculateIK(((i > 0) ? legA.interpolation[i - 1] : Vector3(0,0,0)), legA.interpolation[i]);
+
             // Serial.println("Leg B's IK: ");
-            // legB.calculateIK(currXCoord, currYCoord, currZCoord, legB.interpolationXResults[i], 
-            //     legB.interpolationYResults[i], legB.interpolationZResults[i]);
+
+            legB.calculateIK(((i > 0) ? legB.interpolation[i - 1] : Vector3(0,0,0)), legB.interpolation[i]);
+            
             // Serial.println("Leg C's IK: ");
+            
             legC.calculateIK(((i > 0) ? legC.interpolation[i - 1] : Vector3(0,0,0)), legC.interpolation[i]);
+            
             // Serial.println("calculated ik");
             // Serial.print("Interpolation x: "); Serial.println(legC.interpolation[i].x);
             // Serial.print("Interpolation y: "); Serial.println(legC.interpolation[i].y);
@@ -387,9 +403,9 @@ class Robot {
         updateCurrCoord(target / 2);
         delay(100);
 
-        // tripodWalk(leg1, leg3, leg5, targetX / 2, targetY / 2, targetZ / 2); // right walk
-        // delay(100);
-        // updateCurrCoord(targetX / 2, targetY / 2, targetZ / 2);
+        tripodWalk(leg1, leg3, leg5, target / 2); // right walk
+        delay(100);
+        updateCurrCoord(target / 2);
 
         // Serial.print("Current Position: X=");
         // Serial.print(currXCoord);
@@ -403,6 +419,7 @@ class Robot {
     void defaultPosition() {
         leg0.initialize(); leg1.initialize(); leg2.initialize();
         leg3.initialize(); leg4.initialize(); leg5.initialize();
+        Serial.println("Initializing robot to default position");
     }
 
 

@@ -4,67 +4,46 @@
 #include "Constants.cpp"
 #include "Vector3.h"
 
-// put function declarations here:
-// void defaultPosition(int, int);
-
 // Declare robot as a global variable
 Robot* robot = nullptr;
 Adafruit_PWMServoDriver pwm1 = Adafruit_PWMServoDriver(0x40);
 Adafruit_PWMServoDriver pwm2 = Adafruit_PWMServoDriver(0x41);
 
 void setup() {
-  // put your setup code here, to run once:
-  // int result = myFunction(2, 3);
   Serial.begin(9600);
   Serial.println("Hexapod Code");
-  robot = new Robot(0, 0, 0); // Initialize the robot with coordinates (0, 0, 0)
+  
+  // Initialize the robot with coordinates (0, 0, 0)
+  robot = new Robot(0, 0, 0);
   pwm1.begin();
   pwm1.setPWMFreq(60);
   pwm2.begin();
   pwm2.setPWMFreq(60);
   delay(1000);
-  robot -> defaultPosition();   // Robot initialization to default configurations
+  
+  // Robot initialization to default configurations
+  robot -> defaultPosition();
   Serial.println("Robot initialized to default position.");
 }
 
-void loop() { // Reads the user's input from the keyboard's arrow keys and controls the robot accordingly.
+// Reads the user's input from the keyboard's arrow keys and controls the robot accordingly.
+void loop() {
   int input = Serial.read();
-  // Leg& legA = robot -> leg0; // left front leg, make sure to call by reference  
-  // Leg& legB = robot -> leg1; // left front leg, make sure to call by reference
-  // Leg& legC = robot -> leg2; // left middle leg
-  // Leg& legD = robot -> leg3; // left front leg, make sure to call by reference
-  Leg& legE = robot -> leg4; // left middle leg
-  // Leg& legF = robot -> leg5; // left middle leg
+
+  // Exit if robot is not initialized
   if (robot == nullptr) {
     Serial.println("Robot not initialized");
-    return; // Exit if robot is not initialized
+    return;
   }
 
-  if (input == 99) { // "c" (for testing)
-    // Serial.println(robot.currXCoord);
+  // "c" (for testing)
+  if (input == 99) { 
     robot -> robotMove(Vector3(0, SPEED, 0)); // right walk
-    // legA.moveFemur(10);
-    // legB.moveFemur(10);
-    // legC.moveFemur(10);
-    // legD.moveFemur(10);
-    // legE.moveFemur(10);
-    // legF.moveFemur(10);
-
-    // int size = sizeof(legA.interpolationZResults) / sizeof(legA.interpolationZResults[0]);
-    // for (int i = 0; i < size; i++) {
-    //   legA.calculateIK(robot.currXCoord, robot.currYCoord, robot.currZCoord, legA.interpolationXResults[i],
-    //     legA.interpolationYResults[i], legA.interpolationZResults[i]); // TODO: change this to use the x and y coordinates
-    // }
   }
 
-  if (input == 101) { // "e" (for testing)
-    // Serial.println(robot.currXCoord);
-    // robot -> robotMove(10, 0, 0); // right walk
-    // legA.moveCoxa(10);
-    // legB.moveCoxa(10);
-    // legC.moveCoxa(10);
-    // legD.moveCoxa(10);
-    legE.moveTibia(-10);
+  // "z" (for testing)
+  if (input == 122) {
+    robot -> defaultPosition();
   }
   
   if (input == 119) { // "w"
