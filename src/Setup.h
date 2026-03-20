@@ -1,5 +1,35 @@
 #include <Arduino.h>
 #include <Adafruit_PWMServoDriver.h>
+#include "Vector3.h"
+
+extern Adafruit_PWMServoDriver pwm1;
+extern Adafruit_PWMServoDriver pwm2;
+
+struct servoConfig {
+    uint8_t servoNum; // The servo number on the PCA9685 board
+    int minPwm; // The minimum pwm for the servo
+    int maxPwm; // The maximum pwm for the servo
+    int pwmNum; // location of the PCA9685 board: 1 or 2. 1 is left side, 2 is right side
+    float midVal;
+
+    void move(float angle) {
+        // Map the angle to the PWM range
+        int pwmValue = map(angle, 0, 180, minPwm, maxPwm);
+        // Set the PWM value for the servo
+        if (pwmNum == 1) {
+            pwm1.setPWM(servoNum, 0, pwmValue);
+        } else {
+            pwm2.setPWM(servoNum, 0, pwmValue);
+        }
+    }
+    servoConfig(uint8_t num, int minPwm, int maxPwm, int pwmBoard, float midVal)
+        : servoNum(num), minPwm(minPwm), maxPwm(maxPwm), pwmNum(pwmBoard), midVal(midVal) {}
+};
+
+#define SPEED 200 // Distance robot moves in mm, can be adjusted as needed
+#define INTERPOLATION_SIZE 20 // Number of interpolation points, can be adjusted as needed
+#define SPACING (SPEED / INTERPOLATION_SIZE) // There will be SPEED / SPACING number of interpolation points
+
 
 
 // // // servo numbers correspond to numbers on servo holder, not the PCA pins
@@ -94,7 +124,3 @@
 // #define servonum2 0
 // #define servonum8 1
 // #define servonum14 2
-
-#define SPEED 200 // Distance robot moves in mm, can be adjusted as needed
-#define INTERPOLATION_SIZE 20 // Number of interpolation points, can be adjusted as needed
-#define SPACING (SPEED / INTERPOLATION_SIZE) // There will be SPEED / SPACING number of interpolation points
