@@ -1,15 +1,59 @@
+//
+// !!! WARNING !!! AUTO-GENERATED FILE!
+// PLEASE DO NOT MODIFY IT AND USE "platformio.ini":
+// https://docs.platformio.org/page/projectconf/section_env_build.html#build-flags
+//
 {
     "configurations": [
         {
-            "name": "Mac",
+            "name": "PlatformIO",
             "includePath": [
-                "${workspaceFolder}/**"
+                "/Users/yolandazhou/HexapodCode/HexapodCode/include",
+                "/Users/yolandazhou/HexapodCode/HexapodCode/src",
+                "/Users/yolandazhou/HexapodCode/HexapodCode/.pio/libdeps/megaatmega2560/Adafruit PWM Servo Driver Library",
+                "/Users/yolandazhou/HexapodCode/HexapodCode/.pio/libdeps/megaatmega2560/Adafruit BusIO",
+                "/Users/yolandazhou/.platformio/packages/framework-arduino-avr/libraries/SPI/src",
+                "/Users/yolandazhou/.platformio/packages/framework-arduino-avr/libraries/Wire/src",
+                "/Users/yolandazhou/.platformio/packages/framework-arduino-avr/cores/arduino",
+                "/Users/yolandazhou/.platformio/packages/framework-arduino-avr/variants/mega",
+                "/Users/yolandazhou/.platformio/packages/framework-arduino-avr/libraries/EEPROM/src",
+                "/Users/yolandazhou/.platformio/packages/framework-arduino-avr/libraries/HID/src",
+                "/Users/yolandazhou/.platformio/packages/framework-arduino-avr/libraries/SoftwareSerial/src",
+                ""
             ],
-            "defines": [],
-            "compilerPath": "/usr/bin/gcc",
-            "cStandard": "c17",
-            "cppStandard": "c++14",
-            "intelliSenseMode": "macos-gcc-arm64"
+            "browse": {
+                "limitSymbolsToIncludedHeaders": true,
+                "path": [
+                    "/Users/yolandazhou/HexapodCode/HexapodCode/include",
+                    "/Users/yolandazhou/HexapodCode/HexapodCode/src",
+                    "/Users/yolandazhou/HexapodCode/HexapodCode/.pio/libdeps/megaatmega2560/Adafruit PWM Servo Driver Library",
+                    "/Users/yolandazhou/HexapodCode/HexapodCode/.pio/libdeps/megaatmega2560/Adafruit BusIO",
+                    "/Users/yolandazhou/.platformio/packages/framework-arduino-avr/libraries/SPI/src",
+                    "/Users/yolandazhou/.platformio/packages/framework-arduino-avr/libraries/Wire/src",
+                    "/Users/yolandazhou/.platformio/packages/framework-arduino-avr/cores/arduino",
+                    "/Users/yolandazhou/.platformio/packages/framework-arduino-avr/variants/mega",
+                    "/Users/yolandazhou/.platformio/packages/framework-arduino-avr/libraries/EEPROM/src",
+                    "/Users/yolandazhou/.platformio/packages/framework-arduino-avr/libraries/HID/src",
+                    "/Users/yolandazhou/.platformio/packages/framework-arduino-avr/libraries/SoftwareSerial/src",
+                    ""
+                ]
+            },
+            "defines": [
+                "PLATFORMIO=60119",
+                "ARDUINO_AVR_MEGA2560",
+                "F_CPU=16000000L",
+                "ARDUINO_ARCH_AVR",
+                "ARDUINO=10808",
+                "__AVR_ATmega2560__",
+                ""
+            ],
+            "cStandard": "gnu11",
+            "cppStandard": "gnu++11",
+            "compilerPath": "/Users/yolandazhou/.platformio/packages/toolchain-atmelavr/bin/avr-gcc",
+            "compilerArgs": [
+                "-mmcu=atmega2560",
+                ""
+            ]
         }
     ],
     "version": 4
