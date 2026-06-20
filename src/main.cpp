@@ -1,13 +1,11 @@
 #include <Arduino.h>
 #include <Adafruit_PWMServoDriver.h>
-#include "Movement.cpp"
-#include "Constants.cpp"
+#include "Robot.h"
 #include "Vector3.h"
+#include "Devices.h"
 
 // Declare robot as a global variable
 Robot* robot = nullptr;
-Adafruit_PWMServoDriver pwm1 = Adafruit_PWMServoDriver(0x40);
-Adafruit_PWMServoDriver pwm2 = Adafruit_PWMServoDriver(0x41);
 
 void setup() {
   Serial.begin(9600);

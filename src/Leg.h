@@ -1,5 +1,27 @@
-#include "Setup.h"
 #include "Vector3.h"
+#include "Constants.h"
+#include "Devices.h"
+
+struct servoConfig {
+    uint8_t servoNum; // The servo number on the PCA9685 board
+    int minPwm; // The minimum pwm for the servo
+    int maxPwm; // The maximum pwm for the servo
+    int pwmNum; // location of the PCA9685 board: 1 or 2. 1 is left side, 2 is right side
+    float midVal;
+
+    void move(float angle) {
+        // Map the angle to the PWM range
+        int pwmValue = map(angle, 0, 180, minPwm, maxPwm);
+        // Set the PWM value for the servo
+        if (pwmNum == 1) {
+            pwm1.setPWM(servoNum, 0, pwmValue);
+        } else {
+            pwm2.setPWM(servoNum, 0, pwmValue);
+        }
+    }
+    servoConfig(uint8_t num, int minPwm, int maxPwm, int pwmBoard, float midVal)
+        : servoNum(num), minPwm(minPwm), maxPwm(maxPwm), pwmNum(pwmBoard), midVal(midVal) {}
+};
 
 class Leg {
     public:
@@ -64,4 +86,5 @@ class Leg {
     void moveFemur(float angle);
 
     void moveTibia(float angle);
+    
 };

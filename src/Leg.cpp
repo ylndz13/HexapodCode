@@ -1,4 +1,6 @@
+#include <Arduino.h>
 #include "Leg.h"
+#include "math.h"
 
 float Leg::toDegrees(float rad) {
     return rad * (180.0f / 3.14159265358979323846f);

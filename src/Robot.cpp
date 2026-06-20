@@ -1,3 +1,4 @@
+#include <Arduino.h>
 #include "Robot.h"
 
 Robot::Robot(int x, int y, int z) {
@@ -66,8 +67,7 @@ void Robot::tripodWalk(Leg& legA, Leg& legB, Leg& legC, const Vector3& target) {
     }
 }
 
-void Robot::robotMove(const Vector3& target, Leg& leg0, Leg& leg1, Leg& leg2, Leg& leg3,
-     Leg& leg4, Leg& leg5) {
+void Robot::robotMove(const Vector3& target) {
     tripodWalk(leg0, leg2, leg4, target / 2); // left walk
     updateCurrCoord(target / 2);
     delay(100);
