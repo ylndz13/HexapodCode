@@ -3,3 +3,14 @@
 .vscode/c_cpp_properties.json
 .vscode/launch.json
 .vscode/ipch
+
+env/
+.venv/
+
+__pycache__/
+*.pyc
+
+.DS_Store
+
+*.jpg
+*.JPG
