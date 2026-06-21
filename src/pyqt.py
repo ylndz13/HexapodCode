@@ -163,7 +163,7 @@ class Dashboard(QWidget):
             pen=pg.mkPen('b', width=3)
         )
 
-        self.y_label = pg.TextItem("Y ⊙", color='r')
+        self.y_label = pg.TextItem("Y ⊗", color='r')
         self.y_label.setPos(0,0)
 
         self.robot_plot_xz.addItem(self.y_label)
@@ -316,11 +316,11 @@ class Dashboard(QWidget):
         )
         
         
-        self.robot_timer.timeout.connect(
-            self.setRobotXZBox
-        )
+        # self.robot_timer.timeout.connect(
+        #     self.setRobotXZBox
+        # )
 
-        self.robot_timer.start(200)
+        # self.robot_timer.start(100)
 
     def setRobotXZBox(self):
         if self.counter % 52 < 26:
@@ -460,7 +460,7 @@ class Dashboard(QWidget):
 
         self.y_axis = self.robot_plot_xy.plot(
             [0, 0],
-            [0, -25],
+            [0, 25],
             pen=pg.mkPen('r', width=3)
         )
 
@@ -618,22 +618,22 @@ class Dashboard(QWidget):
         )
         
         
-        self.robot_timer.timeout.connect(
-            self.setRobotXYBox
-        )
+        # self.robot_timer.timeout.connect(
+        #     self.setRobotXYBox
+        # )
 
-        self.robot_timer.start(200)
+        # self.robot_timer.start(100)
 
     def setRobotXYBox(self):
-        if self.counter % 52 < 26:
-            self.robot.tripodWalkLeft()
-            self.counter += 1
-        elif self.counter % 52 >= 26:
-            self.robot.tripodWalkRight()
-            self.counter += 1
-        else:
-            print("undefined movements")
-            print(self.counter)
+        # if self.counter % 52 < 26:
+        #     self.robot.tripodWalkLeft()
+        #     self.counter += 1
+        # elif self.counter % 52 >= 26:
+        #     self.robot.tripodWalkRight()
+        #     self.counter += 1
+        # else:
+        #     print("undefined movements")
+        #     print(self.counter)
 
         legA_x, legA_y, legA_z = self.robot.LegA.LegFK(0)
         legD_x, legD_y, legD_z = self.robot.LegD.LegFK(0)
@@ -743,10 +743,11 @@ class Dashboard(QWidget):
         self.robot_box_3d = QGroupBox("Robot 3D Visualization")
 
         self.robot_view = gl.GLViewWidget()
+        self.robot_view.setMinimumSize(400, 300)
         self.robot_view.setCameraPosition(
             distance=600,
-            elevation=25,
-            azimuth=45
+            elevation=10,
+            azimuth=270
         )
 
         robot_layout = QVBoxLayout()
@@ -782,12 +783,12 @@ class Dashboard(QWidget):
         self.robot_view.addItem(z_axis)
 
         # One line per leg
-        self.leg3d_A = gl.GLLinePlotItem(width=4)
-        self.leg3d_B = gl.GLLinePlotItem(width=4)
-        self.leg3d_C = gl.GLLinePlotItem(width=4)
-        self.leg3d_D = gl.GLLinePlotItem(width=4)
-        self.leg3d_E = gl.GLLinePlotItem(width=4)
-        self.leg3d_F = gl.GLLinePlotItem(width=4)
+        self.leg3d_A = gl.GLLinePlotItem(width=4, color = (1,1,1,1))
+        self.leg3d_B = gl.GLLinePlotItem(width=4, color = (1,1,1,1))
+        self.leg3d_C = gl.GLLinePlotItem(width=4, color = (1,1,1,1))
+        self.leg3d_D = gl.GLLinePlotItem(width=4, color = (1,1,1,1))
+        self.leg3d_E = gl.GLLinePlotItem(width=4, color = (1,1,1,1))
+        self.leg3d_F = gl.GLLinePlotItem(width=4, color = (1,1,1,1))
 
         self.robot_view.addItem(self.leg3d_A)
         self.robot_view.addItem(self.leg3d_B)
@@ -796,30 +797,143 @@ class Dashboard(QWidget):
         self.robot_view.addItem(self.leg3d_E)
         self.robot_view.addItem(self.leg3d_F)
 
+        self.leg3d_A_pos=np.zeros((4,3))
+        
+        self.joints_A = gl.GLScatterPlotItem(
+            pos=self.leg3d_A_pos,
+            size=10,
+            color = (1,1,0,1)
+        )
+
+        self.leg3d_B_pos=np.zeros((4,3))
+        
+        self.joints_B = gl.GLScatterPlotItem(
+            pos=self.leg3d_B_pos,
+            size=10,
+            color = (1,1,0,1)
+        )
+
+        self.leg3d_C_pos=np.zeros((4,3))
+        
+        self.joints_C = gl.GLScatterPlotItem(
+            pos=self.leg3d_C_pos,
+            size=10,
+            color = (1,1,0,1)
+        )
+
+        self.leg3d_D_pos=np.zeros((4,3))
+        
+        self.joints_D = gl.GLScatterPlotItem(
+            pos=self.leg3d_D_pos,
+            size=10,
+            color = (1,1,0,1)
+        )
+
+        self.leg3d_E_pos=np.zeros((4,3))
+        
+        self.joints_E = gl.GLScatterPlotItem(
+            pos=self.leg3d_E_pos,
+            size=10,
+            color = (1,1,0,1)
+        )
+
+        self.leg3d_F_pos=np.zeros((4,3))
+        
+        self.joints_F = gl.GLScatterPlotItem(
+            pos=self.leg3d_F_pos,
+            size=10,
+            color = (1,1,0,1)
+        )
+
+        self.robot_view.addItem(self.joints_A)
+        self.robot_view.addItem(self.joints_B)
+        self.robot_view.addItem(self.joints_C)
+        self.robot_view.addItem(self.joints_D)
+        self.robot_view.addItem(self.joints_E)
+        self.robot_view.addItem(self.joints_F)
+
+        self.robot_timer.timeout.connect(self.setRobotXZBox)
+        self.robot_timer.timeout.connect(self.setRobotXYBox)
+        self.robot_timer.timeout.connect(self.update_robot3D)
+
+        self.robot_timer.start(100)
+
     def update_robot3D(self):
-        self.robot.LegA.LegFK(0)
-        self.robot.LegD.LegFK(0)
+        legA_fk_x, legA_fk_y, legA_fk_z = self.robot.LegA.LegFK(0)
+        legD_fk_x, legD_fk_y, legD_fk_z = self.robot.LegD.LegFK(0)
 
-        self.robot.LegF.LegFK(60)
-        self.robot.LegE.LegFK(60)
+        legF_fk_x, legF_fk_y, legF_fk_z = self.robot.LegF.LegFK(60)
+        legE_fk_x, legE_fk_y, legE_fk_z = self.robot.LegE.LegFK(60)
 
-        self.robot.LegB.LegFK(-60)
-        self.robot.LegC.LegFK(-60)
+        legB_fk_x, legB_fk_y, legB_fk_z = self.robot.LegB.LegFK(-60)
+        legC_fk_x, legC_fk_y, legC_fk_z = self.robot.LegC.LegFK(-60)
 
-        def leg_points(leg):
-            return np.array([
-                [leg.basePos.x,  leg.basePos.y,  leg.basePos.z],
-                [leg.coxaPos.x,  leg.coxaPos.y,  leg.coxaPos.z],
-                [leg.femurPos.x, leg.femurPos.y, leg.femurPos.z],
-                [leg.tibiaPos.x, leg.tibiaPos.y, leg.tibiaPos.z]
-            ])
+        # def leg_points(leg):
+        #     return np.array([
+        #         [leg.basePos.x,  leg.basePos.y,  leg.basePos.z],
+        #         [leg.coxaPos.x,  leg.coxaPos.y,  leg.coxaPos.z],
+        #         [leg.femurPos.x, leg.femurPos.y, leg.femurPos.z],
+        #         [leg.tibiaPos.x, leg.tibiaPos.y, leg.tibiaPos.z]
+        #     ])
 
-        self.leg3d_A.setData(pos=leg_points(self.robot.LegA))
-        self.leg3d_B.setData(pos=leg_points(self.robot.LegB))
-        self.leg3d_C.setData(pos=leg_points(self.robot.LegC))
-        self.leg3d_D.setData(pos=leg_points(self.robot.LegD))
-        self.leg3d_E.setData(pos=leg_points(self.robot.LegE))
-        self.leg3d_F.setData(pos=leg_points(self.robot.LegF))
+        self.leg3d_A_pos = np.array([
+            [legA_fk_x[0], legA_fk_y[0], legA_fk_z[0]],
+            [legA_fk_x[1], legA_fk_y[1], legA_fk_z[1]],
+            [legA_fk_x[2], legA_fk_y[2], legA_fk_z[2]],
+            [legA_fk_x[3], legA_fk_y[3], legA_fk_z[3]]
+        ])
+
+        self.leg3d_D_pos = np.array([
+            [legD_fk_x[0], legD_fk_y[0], legD_fk_z[0]],
+            [legD_fk_x[1], legD_fk_y[1], legD_fk_z[1]],
+            [legD_fk_x[2], legD_fk_y[2], legD_fk_z[2]],
+            [legD_fk_x[3], legD_fk_y[3], legD_fk_z[3]]
+        ])
+
+        self.leg3d_B_pos = np.array([
+            [legB_fk_x[0], legB_fk_y[0], legB_fk_z[0]],
+            [legB_fk_x[1], legB_fk_y[1], legB_fk_z[1]],
+            [legB_fk_x[2], legB_fk_y[2], legB_fk_z[2]],
+            [legB_fk_x[3], legB_fk_y[3], legB_fk_z[3]]
+        ])
+
+        self.leg3d_C_pos = np.array([
+            [legC_fk_x[0], legC_fk_y[0], legC_fk_z[0]],
+            [legC_fk_x[1], legC_fk_y[1], legC_fk_z[1]],
+            [legC_fk_x[2], legC_fk_y[2], legC_fk_z[2]],
+            [legC_fk_x[3], legC_fk_y[3], legC_fk_z[3]]
+        ])
+
+        self.leg3d_F_pos = np.array([
+            [legF_fk_x[0], legF_fk_y[0], legF_fk_z[0]],
+            [legF_fk_x[1], legF_fk_y[1], legF_fk_z[1]],
+            [legF_fk_x[2], legF_fk_y[2], legF_fk_z[2]],
+            [legF_fk_x[3], legF_fk_y[3], legF_fk_z[3]]
+        ])
+
+        self.leg3d_E_pos = np.array([
+            [legE_fk_x[0], legE_fk_y[0], legE_fk_z[0]],
+            [legE_fk_x[1], legE_fk_y[1], legE_fk_z[1]],
+            [legE_fk_x[2], legE_fk_y[2], legE_fk_z[2]],
+            [legE_fk_x[3], legE_fk_y[3], legE_fk_z[3]]
+        ])
+
+
+
+        self.leg3d_A.setData(pos=self.leg3d_A_pos, mode='line_strip')
+        self.joints_A.setData(pos=self.leg3d_A_pos)
+        self.leg3d_D.setData(pos=self.leg3d_D_pos, mode='line_strip')
+        self.joints_D.setData(pos=self.leg3d_D_pos)
+
+        self.leg3d_B.setData(pos=self.leg3d_B_pos, mode='line_strip')
+        self.joints_B.setData(pos=self.leg3d_B_pos)
+        self.leg3d_C.setData(pos=self.leg3d_C_pos, mode='line_strip')
+        self.joints_C.setData(pos=self.leg3d_C_pos)
+
+        self.leg3d_F.setData(pos=self.leg3d_F_pos, mode='line_strip')
+        self.joints_F.setData(pos=self.leg3d_F_pos)
+        self.leg3d_E.setData(pos=self.leg3d_E_pos, mode='line_strip')
+        self.joints_E.setData(pos=self.leg3d_E_pos)
 
 
     def setLogBox(self):
